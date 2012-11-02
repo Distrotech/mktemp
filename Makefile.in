@@ -1,0 +1,132 @@
+#
+# Copyright (c) 2000, 2001, 2008, 2010
+#	Todd C. Miller <Todd.Miller@courtesan.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# @configure_input@
+#
+
+#### Start of system configuration section. ####
+
+srcdir = @srcdir@
+authdir = $(srcdir)/auth
+VPATH = @srcdir@
+
+# Compiler & tools to use
+CC = @CC@
+
+# Executable and object file extensions
+EXEEXT = @EXEEXT@
+OBJEXT = @OBJEXT@
+
+# Which install program?
+INSTALL = $(SHELL) $(srcdir)/install-sh -c
+
+# Libraries
+LIBS = @LIBS@
+
+# C preprocessor flags
+CPPFLAGS = -I$(srcdir) -I. @CPPFLAGS@
+
+# Usually -O and/or -g
+CFLAGS = @CFLAGS@
+
+# Flags to pass to the link stage
+LDFLAGS = @LDFLAGS@
+
+# Man page type (man or mdoc)
+mantype = @MANTYPE@
+
+# Where to install things...
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+sbindir = @sbindir@
+sysconfdir = @sysconfdir@
+mandir = @mandir@
+datarootdir = @datarootdir@
+
+#### End of system configuration section. ####
+
+SHELL = /bin/sh
+
+PROG = mktemp$(EXEEXT)
+
+OBJS = mktemp.$(OBJEXT) @LIBOBJS@
+
+VERSION = @PACKAGE_VERSION@
+
+DISTFILES = INSTALL INSTALL.configure LICENSE Makefile.in README RELEASE_NOTES \
+	    config.guess config.h.in config.sub configure configure.in \
+	    extern.h install-sh mkdtemp.c mkinstalldirs mktemp.c mktemp.man \
+	    mktemp.mdoc priv_mktemp.c arc4random.c strdup.c strerror.c
+
+all: $(PROG)
+
+.SUFFIXES: .o .obj .c .h
+
+.c.o:
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
+
+.c.obj:
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
+
+$(PROG): $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS) $(LIBS)
+
+$(OBJS): config.h
+
+install: install-dirs install-binaries install-man
+
+install-dirs:
+	$(SHELL) $(srcdir)/mkinstalldirs $(DESTDIR)$(bindir) \
+	    $(DESTDIR)$(mandir)/man1
+
+install-binaries: $(PROG)
+	$(INSTALL) -m 0555 -s $(PROG) $(DESTDIR)$(bindir)/$(PROG)
+
+install-man:
+	$(INSTALL) -m 0444 $(srcdir)/mktemp.$(mantype) \
+	    $(DESTDIR)$(mandir)/man1/mktemp.1
+
+check:
+	@echo nothing to check
+
+tags: $(SRCS)
+	ctags $(SRCS)
+
+TAGS: $(SRCS)
+	etags $(SRCS)
+
+clean:
+	-rm -f *.$(OBJEXT) $(PROG) core $(PROG).core
+
+mostlyclean: clean
+
+distclean: clean
+	-rm -rf Makefile config.h config.status config.cache config.log autom4te.cache
+
+clobber: distclean
+
+realclean: distclean
+	rm -f TAGS tags
+
+cleandir: realclean
+
+dist: $(DISTFILES)
+	pax -w -x ustar -s '/^/mktemp-$(VERSION)\//' \
+	    -f ../mktemp-$(VERSION).tar $(DISTFILES)
+	gzip -9f ../mktemp-$(VERSION).tar
+	ls -l ../mktemp-$(VERSION).tar.gz

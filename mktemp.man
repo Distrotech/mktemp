@@ -1,0 +1,235 @@
+.\"
+.\" Copyright (c) 1996, 2000, 2001, 2004, 2010
+.\"	Todd C. Miller <Todd.Miller@courtesan.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" From: $OpenBSD: mktemp.1,v 1.23 2003/06/17 21:56:25 millert Exp $
+.\"
+.TH MKTEMP 1 "30 September 2001"
+.SH NAME
+\fBmktemp\fP \- make temporary filename (unique)
+.SH SYNOPSIS
+\fBmktemp\fP [\fB\-V\fP] | [\fB\-dqtu\fP] [\fB\-p\fP \fIdirectory\fP] [\fItemplate\fP]
+.SH DESCRIPTION
+The
+.B mktemp
+utility takes the given filename
+.I template
+and overwrites a portion of it to create a unique filename.
+The
+.I template
+may be any filename with some number of
+\(gaXs\(aa appended to it, for example
+.I /tmp/tfile.XXXXXXXXXX.
+If no
+.I template
+is specified a default of
+.I tmp.XXXXXXXXXX
+is used and the
+.B \-t
+flag is implied (see below).
+.PP
+The trailing \(gaXs\(aa are replaced with a combination
+of the current process number and random letters.
+The name chosen depends both on the number of \(gaXs\(aa in the
+.I template
+and the number of collisions with pre\-existing files.
+The number of unique filenames
+.B mktemp
+can return depends on the number of
+\(gaXs\(aa provided; ten \(gaXs\(aa will result in
+.B mktemp
+testing roughly 26 ** 10 combinations.
+.PP
+If
+.B mktemp
+can successfully generate a unique filename, the file (or directory)
+is created with file permissions such that it is only readable and writable
+by its owner (unless the
+.B \-u
+flag is given) and the filename is printed to standard output.
+.PP
+.B mktemp
+is provided to allow shell scripts to safely use temporary files.
+Traditionally, many shell scripts take the name of the program with
+the PID as a suffix and use that as a temporary filename.
+This kind of naming scheme is predictable and the race condition it creates
+is easy for an attacker to win.
+A safer, though still inferior approach
+is to make a temporary directory using the same naming scheme.
+While this does allow one to guarantee that a temporary file will not be
+subverted, it still allows a simple denial of service attack.
+For these reasons it is suggested that
+.B mktemp
+be used instead.
+.PP
+The options are as follows:
+.TP
+.B \-V
+Print the version and exit.
+.TP
+.B \-d
+Make a directory instead of a file.
+.TP
+.BI "\-p " directory
+Use the specified
+.I directory
+as a prefix when generating the temporary filename.
+The
+.I directory
+will be overridden by the user's
+.SM TMPDIR
+environment variable if it is set.
+This option implies the
+.B \-t
+flag (see below).
+.TP
+.B \-q
+Fail silently if an error occurs.
+This is useful if
+a script does not want error output to go to standard error.
+.TP
+.B \-t
+Generate a path rooted in a temporary directory.
+This directory is chosen as follows:
+.RS
+.IP \(bu
+If the user's
+.SM TMPDIR
+environment variable is set, the directory contained therein is used.
+.IP \(bu
+Otherwise, if the
+.B \-p
+flag was given the specified directory is used.
+.IP \(bu
+If none of the above apply,
+.I /tmp
+is used.
+.RE
+.PP
+In this mode, the
+.I template
+(if specified) should be a directory component (as opposed to a full path)
+and thus should not contain any forward slashes.
+.TP
+.B \-u
+Operate in "unsafe" mode.
+The temp file will be unlinked before
+.B mktemp
+exits.  This is slightly better than mktemp(3)
+but still introduces a race condition.  Use of this
+option is not encouraged.
+.PP
+The
+.B mktemp
+utility
+exits with a value of 0 on success or 1 on failure.
+.SH ENVIRONMENT
+.IP TMPDIR 8
+directory in which to place the temporary file when in
+.B \-t
+mode
+.SH EXAMPLES
+The following sh(1)
+fragment illustrates a simple use of
+.B mktemp
+where the script should quit if it cannot get a safe
+temporary file.
+.RS
+.nf
+
+TMPFILE=\(gamktemp /tmp/example.XXXXXXXXXX\(ga || exit 1
+echo "program output" >> $TMPFILE
+
+.fi
+.RE
+The same fragment with support for a user's
+.SM TMPDIR
+environment variable can be written as follows.
+.RS
+.nf
+
+TMPFILE=\(gamktemp \-t example.XXXXXXXXXX\(ga || exit 1
+echo "program output" >> $TMPFILE
+
+.fi
+.RE
+This can be further simplified if we don't care about the actual name of
+the temporary file.
+In this case the
+.B \-t
+flag is implied.
+.RS
+.nf
+
+TMPFILE=\(gamktemp\(ga || exit 1
+echo "program output" >> $TMPFILE
+
+.fi
+.RE
+In some cases, it may be desirable to use a default temporary directory
+other than
+.I /tmp.
+In this example the temporary file will be created in
+.I /extra/tmp
+unless the user's
+.SM TMPDIR
+environment variable specifies otherwise.
+.RS
+.nf
+
+TMPFILE=\(gamktemp \-p /extra/tmp example.XXXXXXXXXX\(ga || exit 1
+echo "program output" >> $TMPFILE
+
+.fi
+.RE
+In some cases, we want the script to catch the error.
+For instance, if we attempt to create two temporary files and
+the second one fails we need to remove the first before exiting.
+.RS
+.nf
+
+TMP1=\(gamktemp \-t example.1.XXXXXXXXXX\(ga || exit 1
+TMP2=\(gamktemp \-t example.2.XXXXXXXXXX\(ga
+if [ $? \-ne 0 ]; then
+	rm \-f $TMP1
+	exit 1
+fi
+
+.fi
+.RE
+Or perhaps you don't want to exit if
+.B mktemp
+is unable to create the file.
+In this case you can protect that part of the script thusly.
+.RS
+.nf
+
+TMPFILE=\(gamktemp \-t example.XXXXXXXXXX\(ga && {
+	# Safe to use $TMPFILE in this block
+	echo data > $TMPFILE
+	...
+	rm \-f $TMPFILE
+}
+
+.fi
+.RE
+.SH SEE ALSO
+.BR mkdtemp (3),
+.BR mkstemp (3),
+.BR mktemp (3)
+.SH HISTORY
+The
+.B mktemp
+utility appeared in OpenBSD 2.1.
